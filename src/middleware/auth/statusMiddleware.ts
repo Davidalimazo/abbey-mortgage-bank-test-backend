@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from 'express';
-import { saveAuditDetails } from '../../utils/constants';
+
 
 export const checkUserStatus = async(req: any, res: Response, next: NextFunction) => {
 

@@ -1,421 +1,116 @@
-import { connectToDB } from "../../database/connecttodb";
-import { CriteriaSearchEnum, UsersType } from "./interface";
-import OracleDB from "oracledb"
-import {v4 as uuid} from "uuid"
+import bcrypt from "bcryptjs";
+import User from "./models";
+import { IMediator } from "../../lib/interfaces";
+import { HttpStatus } from "../../lib/constants/http_status";
+import {
+	CreateUserDto,
+	IUserRepository,
+	IUser,
+	LoginDto,
+	IUserResponse,
+	IUpdateUserModel,
+} from "./interfaces";
 
-const CHUNK_SIZE = 100;
+class UserRepository extends IUserRepository {
+	getUser(userId: string): Promise<IMediator<IUserResponse | null>> {
+		throw new Error("Method not implemented.");
+	}
+	updateUser(
+		updateUserDto: IUpdateUserModel,
+	): Promise<IMediator<IUserResponse | null>> {
+		throw new Error("Method not implemented.");
+	}
+	followUser(
+		userId: string,
+		action: boolean,
+	): Promise<IMediator<IUserResponse | null>> {
+		throw new Error("Method not implemented.");
+	}
+	async createUser({
+		email,
+		password,
+		profilePicture,
+		username,
+	}: CreateUserDto): Promise<IMediator<IUserResponse | null>> {
+		try {
+			// Check if the user already exists
+			const existingUser = await User.findOne({ email });
+			if (existingUser) {
+				return {
+					data: null,
+					message: `User with this ${email} already exists`,
+					status: HttpStatus.NOT_ACCEPTABLE,
+				};
+			}
 
+			// Hash the password before saving
+			const hashedPassword = await bcrypt.hash(password, 10);
 
-class UsersRepository{
+			// Create a new user
+			const newUser = new User({
+				username,
+				email,
+				password: hashedPassword, // Store the hashed password
+				profile_picture: profilePicture,
+				followers: [], // Initialize as empty array
+				posts: [], // Initialize as empty array
+			});
 
-  async uploadRecords(usersDTO:UsersType[], CREATED_BY:string){
-    let connection =  await connectToDB();
+			// Save the new user to the database
+			const savedUser = await newUser.save();
 
-try {
+			const { password: userPassword, ...rest } = savedUser.toObject();
 
-  let rows;
+			return {
+				data: { id: rest._id, ...rest },
+				message: "Success",
+				status: HttpStatus.OK,
+			};
+		} catch (error) {
+			throw error;
+		}
+	}
 
-  const sql =`INSERT INTO USERS_TBL (FIRST_NAME, SURNAME, USER_ROLE, USER_TYPE, PHONE_NUMBER, USER_PASSWORD, EMAIL, USER_ID, PERSONNEL_NO, STATUS, CREATED_BY) VALUES (:FIRST_NAME, :SURNAME, :USER_ROLE, :USER_TYPE, :PHONE_NUMBER, :USER_PASSWORD, :EMAIL, :USER_ID, :PERSONNEL_NO, :STATUS, :CREATED_BY)`;
+	async login({
+		email,
+		password,
+	}: LoginDto): Promise<IMediator<IUserResponse | null>> {
+		try {
+			// Check if the user already exists
+			const existingUser = await User.findOne({ email });
+			if (!existingUser) {
+				return {
+					data: null,
+					message: `User with this ${email} does not exists`,
+					status: HttpStatus.BAD_REQUEST,
+				};
+			}
 
-  // Divide data into chunks
-  for (let i = 0; i < usersDTO.length; i += CHUNK_SIZE) {
+			const user = existingUser.toObject({ flattenObjectIds: true });
 
-    const chunk = usersDTO.slice(i, i + CHUNK_SIZE).map(item=>{
-      return {
-        PERSONNEL_NO: item["personnelNo"],
-        FIRST_NAME: item["firstName"],
-        SURNAME: item["surname"],
-        USER_ROLE: item["role"],
-        USER_TYPE: item["userType"],
-        PHONE_NUMBER: item["phoneNumber"],
-        EMAIL: item["email"],
-        STATUS: Number(item["status"]),
-        USER_ID: uuid(),
-        USER_PASSWORD: uuid().slice(0, 7) + "A@2",
-        CREATED_BY
-      }
-    });
+			const comparePassword = await bcrypt.compare(
+				password,
+				user.password,
+			);
+			const { password: userPassword, ...rest } = user;
 
-    try {
-      const options = {
-        autoCommit: true,
-        bindDefs: {
-          PERSONNEL_NO: { type: OracleDB.STRING, maxSize:15 },
-          FIRST_NAME: { type: OracleDB.STRING, maxSize:50 },
-          SURNAME: { type: OracleDB.STRING, maxSize:50 },
-          USER_ROLE: { type: OracleDB.STRING, maxSize:20 },
-          STATUS: { type: OracleDB.NUMBER },
-          USER_TYPE: { type: OracleDB.STRING, maxSize:15 },
-          PHONE_NUMBER: { type: OracleDB.STRING, maxSize:20 },
-          EMAIL:  { type: OracleDB.STRING, maxSize:70 },
-          USER_ID: { type: OracleDB.STRING, maxSize:70 },
-          USER_PASSWORD: { type: OracleDB.STRING, maxSize:200 },
-          CREATED_BY: { type: OracleDB.STRING, maxSize:50 },
-        }
-      };
-  
-      let result:any = await connection.executeMany(sql, chunk, options);
-      rows += result.rowsAffected;
-    } catch (error:any) {
-       // Handle unique constraint violation error (e.g., unique key already exists)
-  if (error && error.errorNum === 1) {
-    console.error('Unique constraint violation occurred:', error.message);
-    // You can log or handle this error as needed
-    // For example, skip the rows causing the violation and continue
-
-    continue;
-  } else {
-    console.error('Error:', error.message);
-    // Handle other types of errors as needed
-    return error.message;
-  }
-}
-  
-  }
-  return rows;
-} catch (error:any) {
- return error.message;
-} finally {
-  if (connection) {
-    try {
-      await connection.close();
-    } catch (error:any) {
-      console.error('Error closing connection:', error.message);
-    }
-  }
-}
-  }
-
-    async uploadUsers(usersDTO:UsersType[]){
-
-          let connection =  await connectToDB();
-
-          try {
-        
-            for (const item of usersDTO) {
-              const {firstName, surname, role, userType, phoneNumber, email,  } = item;
-              const sql = `INSERT INTO USERS_TBL (FIRST_NAME, SURNAME, USER_ROLE, USER_TYPE, PHONE_NUMBER, USER_PASSWORD, EMAIL, USER_ID, PERSONNEL_NO) VALUES (:FIRST_NAME, :SURNAME, :USER_ROLE, :USER_TYPE, :PHONE_NUMBER, :USER_PASSWORD, :EMAIL, :USER_ID, :PERSONNEL_NO)`;
-              
-              const result = await connection.execute(sql, {FIRST_NAME: firstName, SURNAME:surname, USER_ROLE:role, USER_TYPE:userType, PHONE_NUMBER: phoneNumber, USER_PASSWORD: uuid().slice(0, 7) + "A@2", EMAIL:email,  USER_ID:uuid()}, {outFormat: OracleDB.OUT_FORMAT_OBJECT, autoCommit:true });
-              console.log(`Inserted: ${surname} - ${firstName}`);
-            }
-            return "success";
-          } catch (err) {
-            console.error('Error occurred:', err);
-            return err;
-          } finally {
-            if (connection) {
-              try {
-                await connection.close();
-              } catch (err) {
-                console.error('Error closing connection:', err);
-              }
-            }
-          }
-    }
-
-    async createUser(usersDTO:UsersType, CREATED_BY:string){
-
-        let connection =  await connectToDB();
-
-    try {
-        
-        const {firstName, surname, role, userType, phoneNumber, email , userId, personnelNo } = usersDTO;
-        const sql = `INSERT INTO USERS_TBL (FIRST_NAME, SURNAME, USER_ROLE, USER_TYPE, PHONE_NUMBER, USER_PASSWORD, EMAIL, USER_ID, PERSONNEL_NO, CREATED_BY) VALUES (:FIRST_NAME, :SURNAME, :USER_ROLE, :USER_TYPE, :PHONE_NUMBER, :USER_PASSWORD, :EMAIL, :USER_ID, :PERSONNEL_NO, :CREATED_BY)`;
-        
-        const result = await connection.execute(sql, {FIRST_NAME: firstName, SURNAME:surname, USER_ROLE:role, USER_TYPE:userType, PHONE_NUMBER: phoneNumber, USER_PASSWORD: uuid().slice(0, 7) + "A@2", EMAIL:email,  USER_ID:uuid(), PERSONNEL_NO:personnelNo, CREATED_BY}, {outFormat: OracleDB.OUT_FORMAT_OBJECT, autoCommit:true });
-        console.log(`Inserted: ${surname} - ${firstName}`);
-        return result.rows
-    } catch (err) {
-        console.error('Error occurred:', err);
-        return err;
-    } finally {
-        if (connection) {
-          try {
-            await connection.close();
-          } catch (err) {
-            console.error('Error closing connection:', err);
-          }
-        }
-      }
-    }
-
-    async createUserRole(){
-
-        let connection =  await connectToDB();
-
-    try {    
-
-        const sql = `INSERT INTO user_roles (personnel_no, role_id)
-        VALUES ('N/10956', 1)`;
-        
-        const result = await connection.execute(sql, [], {outFormat: OracleDB.OUT_FORMAT_OBJECT, autoCommit:true });
-
-        return result.rows
-    } catch (err) {
-        console.error('Error occurred:', err);
-        return err;
-    } finally {
-        if (connection) {
-          try {
-            await connection.close();
-          } catch (err) {
-            console.error('Error closing connection:', err);
-          }
-        }
-      }
-    }
-
-    async findUserByEmail(email:string){
-        let connection =  await connectToDB();
-        
-        try {
-            const sql = `SELECT * FROM users_tbl WHERE email = :1`;
-            const result:any = await connection.execute(sql,[email], {outFormat: OracleDB.OUT_FORMAT_OBJECT });
-            
-            const data = result.rows[0];
-
-            if(data){
-              let update = `UPDATE users_tbl
-              SET last_seen = CURRENT_TIMESTAMP
-              WHERE email = '${email}'`;
-             await connection.execute(update,[], {outFormat: OracleDB.OUT_FORMAT_OBJECT, autoCommit:true });
-            return data
-            }
-      
-            return null;
-        } catch (error) {
-            console.log(error);
-            return error;
-        } finally{
-            if (connection) {
-                try {
-                  await connection.close();
-                } catch (err) {
-                  console.error('Error closing connection:', err);
-                }
-              }
-        }
+			if (comparePassword) {
+				return {
+					data: { id: rest._id, ...rest },
+					message: "Success",
+					status: HttpStatus.OK,
+				};
+			} else {
+				return {
+					data: null,
+					message: `Password do not match`,
+					status: HttpStatus.NOT_ACCEPTABLE,
+				};
+			}
+		} catch (error) {
+			throw error;
+		}
+	}
 }
 
-async findUserByUserId(userId:string){
-    let connection =  await connectToDB();
-    
-    try {
-        const sql = `SELECT * FROM users_tbl WHERE user_id = :1`;
-        const result:any = await connection.execute(sql,[userId], {outFormat: OracleDB.OUT_FORMAT_OBJECT });
-       
-        return result.rows[0];
-        
-    } catch (error) {
-        console.log(error);
-        return error;
-    } finally{
-        if (connection) {
-            try {
-              await connection.close();
-            } catch (err) {
-              console.error('Error closing connection:', err);
-            }
-          }
-    }
-}
-
-async changeEmail(email:string, userId:string){
-  let connection =  await connectToDB();
-  
-  try {
-      const sql = `UPDATE USERS_TBL SET EMAIL='${email}' WHERE USER_ID='${userId}'`;
-      const result:any = await connection.execute(sql,[], {outFormat: OracleDB.OUT_FORMAT_OBJECT, autoCommit:true });
-     
-      return result.rowsAffected;
-      
-  } catch (error) {
-      console.log(error);
-      return error;
-  } finally{
-      if (connection) {
-          try {
-            await connection.close();
-          } catch (err) {
-            console.error('Error closing connection:', err);
-          }
-        }
-  }
-}
-
-async findUserByPersonalNo(personalNo:string){
-  let connection =  await connectToDB();
-  
-  try {
-
-      const sql = `SELECT * FROM USERS_TBL WHERE PERSONNEL_NO = '${personalNo}'`;
-      const result:any = await connection.execute(sql, {}, {outFormat: OracleDB.OUT_FORMAT_OBJECT, autoCommit:true });
-      
-      const data = result.rows[0];
-
-      if(data){
-
-      return data
-      }
-
-      return null;
-      
-  } catch (error) {
-      console.log(error);
-      return error;
-  } finally{
-      if (connection) {
-          try {
-            await connection.close();
-          } catch (err) {
-            console.error('Error closing connection:', err);
-          }
-        }
-  }
-}
-
-async findUserByPersonnelNo(userId:string){
-  let connection =  await connectToDB();
-  
-  try {
-      const sql = `SELECT * FROM users_tbl WHERE user_id = :1`;
-      const result:any = await connection.execute(sql,[userId], {outFormat: OracleDB.OUT_FORMAT_OBJECT });
-     
-      return result.rows[0];
-      
-  } catch (error) {
-      console.log(error);
-      return error;
-  } finally{
-      if (connection) {
-          try {
-            await connection.close();
-          } catch (err) {
-            console.error('Error closing connection:', err);
-          }
-        }
-  }
-}
-
-async findUserByCriterial(criteria:CriteriaSearchEnum, data:string){
-  let connection =  await connectToDB();
-
-  
-  try {
-      const sql = `SELECT * FROM users_tbl WHERE ${CriteriaSearchEnum[criteria]} = :1`;
-      const result:any = await connection.execute(sql,[data], {outFormat: OracleDB.OUT_FORMAT_OBJECT });
-    
-      return result.rows[0];
-      
-  } catch (error) {
-      console.log(error);
-      return error;
-  } finally{
-      if (connection) {
-          try {
-            await connection.close();
-          } catch (err) {
-            console.error('Error closing connection:', err);
-          }
-        }
-  }
-}
-
-async updatePassword(hash:string, userId:string){
-  let connection =  await connectToDB();
-  
-  try {
-    const sql = `UPDATE users_tbl SET user_password = :1, has_changed_password = :2 WHERE user_id = :3`;
-    const result: any = await connection.execute(sql, [hash, 1, userId], {autoCommit: true, outFormat: OracleDB.OUT_FORMAT_OBJECT});
-
-    return result;
-      
-  } catch (error) {
-      console.log(error);
-      return error;
-  } finally{
-      if (connection) {
-          try {
-            await connection.close();
-          } catch (err) {
-            console.error('Error closing connection:', err);
-          }
-        }
-  }
-}
-
-async changeUserStatus(personnel_no:string, status:number){
-  let connection =  await connectToDB();
-  
-  try {
-    const sql = `UPDATE users_tbl
-    SET status = ${status}
-    WHERE personnel_no = '${personnel_no}'`;
-    const result: any = await connection.execute(sql, [], {autoCommit: true, outFormat: OracleDB.OUT_FORMAT_OBJECT});
-
-    return result;
-      
-  } catch (error) {
-      console.log(error);
-      return error;
-  } finally{
-      if (connection) {
-          try {
-            await connection.close();
-          } catch (err) {
-            console.error('Error closing connection:', err);
-          }
-        }
-  }
-}
-
-
-async deleteUser(personnel_no:string){
-  let connection =  await connectToDB();
-  
-  try {
-    const sql = `delete from users_tbl where personnel_no='${personnel_no}'`;
-    const result: any = await connection.execute(sql, [], {autoCommit: true, outFormat: OracleDB.OUT_FORMAT_OBJECT});
-
-    return result;
-      
-  } catch (error) {
-      console.log(error);
-      return error;
-  } finally{
-      if (connection) {
-          try {
-            await connection.close();
-          } catch (err) {
-            console.error('Error closing connection:', err);
-          }
-        }
-  }
-}
-
-
-async findAllUsers(){
-  let connection =  await connectToDB();
-  
-  try {
-      const sql = `SELECT * FROM users_tbl`;
-      const result:any = await connection.execute(sql, [], {outFormat: OracleDB.OUT_FORMAT_OBJECT });
-      return result.rows;
-      
-  } catch (error) {
-      console.log(error);
-      return error;
-  } finally{
-      if (connection) {
-          try {
-            await connection.close();
-          } catch (err) {
-            console.error('Error closing connection:', err);
-          }
-        }
-  }
-}
-}
-
-export default new UsersRepository()
+export default new UserRepository();

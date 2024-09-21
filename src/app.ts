@@ -1,67 +1,56 @@
-import express, {Application} from "express";
+import express, { Application } from "express";
 import compression from "compression";
 import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
-import IController from "./utils/interfaces/controller.interface";
+import IController from "./lib/interfaces/controller.interface";
 import ErrorMiddleWare from "./middleware/error/error.middleware";
 import apiKeyMiddleware from "./middleware/auth/api.key.middleware";
-import { connectToDB } from "./database/connecttodb";
-import { checkTokenAndDecode } from "./middleware/auth/protected.api.middleware";
-import path from 'path';
-import { checkUserStatus } from "./middleware/auth/statusMiddleware";
-//import { connectToDB } from "./database/connecttodb";
 
+import { checkTokenAndDecode } from "./middleware/auth/protected.api.middleware";
+import path from "path";
+import mongoose from "mongoose";
+import customEnv from "./lib/validateEnv";
 
 class App {
 	public express: Application;
-	public publicPath = path.join(__dirname, '..', '..', 'public');
+	public publicPath = path.join(__dirname, "..", "..", "public");
 
-	constructor(controller: IController[]){
+	constructor(controller: IController[]) {
 		this.express = express();
 
-		this.initializeDBConnection();
+		this.initializeDatabase();
 		this.initializeMiddleWare();
 		this.initializeControllers(controller);
 		this.initializeErrorhandling();
 	}
-	private initializeMiddleWare(){
-		
+	private initializeMiddleWare() {
 		this.express.use(cors());
 		this.express.use(helmet());
-		this.express.use(morgan("dev"));
+		this.express.use(morgan("combined"));
 		this.express.use(compression());
 		this.express.use(checkTokenAndDecode);
 		// Increase payload size limit
-		this.express.use(express.json({limit: '50mb' }));
+		this.express.use(express.json({ limit: "50mb" }));
 		this.express.use(express.static(this.publicPath));
-		this.express.use(express.urlencoded({limit: '50mb', extended: true}));
+		this.express.use(express.urlencoded({ limit: "50mb", extended: true }));
 		this.express.use(apiKeyMiddleware);
 	}
-	private initializeControllers(controllers:IController[]){
-		controllers.forEach(controller=>{
-			if(controller.path === "auth"){
-				this.express.use(`/api/${controller.path}`, controller.router)
-			  }else{
-				this.express.use(`/api/${controller.path}`, checkUserStatus, controller.router)
-			  }
+	private initializeControllers(controllers: IController[]) {
+		controllers.forEach((controller) => {
+			this.express.use(`/api/v1/${controller.path}`, controller.router);
 		});
 	}
 
-	private initializeErrorhandling():void{
-		this.express.use(ErrorMiddleWare);
+	private initializeDatabase() {
+		mongoose
+			.connect(customEnv.DB_URL, { retryWrites: true })
+			.then((state) => console.log("Connected to db"))
+			.catch((err) => console.log("Error connecting to db: ", err));
 	}
 
-	 private initializeDBConnection():void{
-	
-		const connect =	Promise.resolve(connectToDB()).then(res=>{
-			if(res.isHealthy()){
-				console.log("Database connection successful")
-			}else{
-				console.log("Database connection failed")
-			}
-		}).catch(err=>console.log(err));
-		
+	private initializeErrorhandling(): void {
+		this.express.use(ErrorMiddleWare);
 	}
 }
 

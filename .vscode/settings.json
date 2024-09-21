@@ -1,8 +1,11 @@
 {
-    "files.autoSave": "onFocusChange",
     "editor.wordWrap": "on",
     "editor.formatOnSave": true,
-    "eslint.alwaysShowStatus": true,
-    "eslint.format.enable": true,
-    "prettier.proseWrap": "always"
+    "prettier.proseWrap": "always",
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.wordWrapColumn": 80,
+    "editor.wordBreak": "normal",
+    "editor.autoIndent": "full",
+    "editor.autoClosingBrackets": "always",
+    "editor.bracketPairColorization.enabled": true
 }

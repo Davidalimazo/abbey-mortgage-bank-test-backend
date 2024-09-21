@@ -1,9 +1,16 @@
 version: "3.8"
 services:
-  api:
-    build: ./api
-    container_name: ahqms_backend
-    ports:
-      - '3000:3000'
-    volumes:
-      - ./api:/app
+    db:
+        image: postgres:alpine-15
+        environment:
+            POSTGRES_PASSWORD: "Test001#"
+            POSTGRES_USER: "test"
+        ports:
+            - "5432:5432"
+    api:
+        build: ./api
+        container_name: abbey_mortgage_backend
+        ports:
+            - "8080:8080"
+        volumes:
+            - ./api:/app
