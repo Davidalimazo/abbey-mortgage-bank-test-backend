@@ -1,5 +1,4 @@
 import bcrypt from "bcryptjs";
-import User from "./models";
 import { IMediator } from "../../lib/interfaces";
 import { HttpStatus } from "../../lib/constants/http_status";
 import {
@@ -9,7 +8,11 @@ import {
 	LoginDto,
 	IUserResponse,
 	IUpdateUserModel,
+	ChangePasswordDto,
 } from "./interfaces";
+
+import UserDAO from "./dao";
+import { v4 } from "uuid";
 
 class UserRepository extends IUserRepository {
 	getUser(userId: string): Promise<IMediator<IUserResponse | null>> {
@@ -26,47 +29,87 @@ class UserRepository extends IUserRepository {
 	): Promise<IMediator<IUserResponse | null>> {
 		throw new Error("Method not implemented.");
 	}
-	async createUser({
-		email,
-		password,
-		profilePicture,
-		username,
-	}: CreateUserDto): Promise<IMediator<IUserResponse | null>> {
+	async createUser(
+		userDTO: CreateUserDto,
+	): Promise<IMediator<IUserResponse | null>> {
 		try {
 			// Check if the user already exists
-			const existingUser = await User.findOne({ email });
+			const existingUser = await UserDAO.findUserByEmail({
+				email: userDTO.email,
+			});
+
 			if (existingUser) {
 				return {
 					data: null,
-					message: `User with this ${email} already exists`,
+					message: `User with this ${userDTO.email} already exists`,
 					status: HttpStatus.NOT_ACCEPTABLE,
 				};
+			} else {
+				// Hash the password before saving
+				const hashedPassword = await bcrypt.hash(userDTO.password, 12);
+
+				// Create a new user
+				const newUser = await UserDAO.createUser({
+					...userDTO,
+					userId: v4(),
+					password: hashedPassword,
+				});
+
+				return {
+					data: newUser,
+					message: "Success",
+					status: HttpStatus.OK,
+				};
 			}
-
-			// Hash the password before saving
-			const hashedPassword = await bcrypt.hash(password, 10);
-
-			// Create a new user
-			const newUser = new User({
-				username,
-				email,
-				password: hashedPassword, // Store the hashed password
-				profile_picture: profilePicture,
-				followers: [], // Initialize as empty array
-				posts: [], // Initialize as empty array
-			});
-
-			// Save the new user to the database
-			const savedUser = await newUser.save();
-
-			const { password: userPassword, ...rest } = savedUser.toObject();
-
-			return {
-				data: { id: rest._id, ...rest },
-				message: "Success",
-				status: HttpStatus.OK,
-			};
 		} catch (error) {
+			throw error;
+		}
+	}
+
+	async changeUserPassword(
+		changePasswordDto: ChangePasswordDto,
+	): Promise<IMediator<boolean | null>> {
+		const { oldPassword, newPassword, email } = changePasswordDto;
+		try {
+			let user: IUser = await UserDAO.findUserByEmail({ email });
+
+			if (user?.email) {
+				const salt = await bcrypt.genSalt(12);
+
+				const compare = await bcrypt.compare(
+					oldPassword,
+					user.password,
+				);
+
+				if (compare) {
+					const hash = await bcrypt.hash(newPassword, salt);
+					const detailsToUpdate = { password: hash };
+
+					const result: any = await UserDAO.updateUser({
+						user: detailsToUpdate,
+						userId: user.userId,
+					});
+
+					return {
+						data: true,
+						message: "Password changed successfully",
+						status: HttpStatus.OK,
+					};
+				}
+
+				return {
+					data: false,
+					message: "Password do not match",
+					status: HttpStatus.BAD_REQUEST,
+				};
+			} else {
+				return {
+					data: false,
+					message: "Account Not Found",
+					status: HttpStatus.BAD_REQUEST,
+				};
+			}
+		} catch (error: any) {
 			throw error;
 		}
 	}
@@ -77,7 +120,9 @@ class UserRepository extends IUserRepository {
 	}: LoginDto): Promise<IMediator<IUserResponse | null>> {
 		try {
 			// Check if the user already exists
-			const existingUser = await User.findOne({ email });
+			const existingUser = await UserDAO.findUserByEmail({
+				email: email,
+			});
 			if (!existingUser) {
 				return {
 					data: null,
@@ -86,17 +131,16 @@ class UserRepository extends IUserRepository {
 				};
 			}
 
-			const user = existingUser.toObject({ flattenObjectIds: true });
-
 			const comparePassword = await bcrypt.compare(
 				password,
-				user.password,
+				existingUser.password,
 			);
-			const { password: userPassword, ...rest } = user;
+
+			const { password: userpwd, ...rest } = existingUser;
 
 			if (comparePassword) {
 				return {
-					data: { id: rest._id, ...rest },
+					data: rest,
 					message: "Success",
 					status: HttpStatus.OK,
 				};

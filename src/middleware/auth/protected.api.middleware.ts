@@ -2,14 +2,6 @@ import { Request, Response, NextFunction } from "express";
 import jwt, { JwtPayload, VerifyErrors } from "jsonwebtoken";
 import customEnv from "../../lib/validateEnv";
 
-// interface Locals extends Record<string, any> {
-//     USER_ID: string;
-//   }
-//   export interface MyRequest extends Request {
-//     locals: Locals;
-//   }
-
-const WHITE_LISTED_URL = ["/api/auth/user/login"];
 
 // Middleware function
 export const checkTokenAndDecode: (
@@ -17,15 +9,8 @@ export const checkTokenAndDecode: (
 	res: Response,
 	next: NextFunction,
 ) => void = async (req, res, next) => {
-	console.log(req.url);
+
 	try {
-		if (
-			req.url === "/api/v1/auth/user/login" ||
-			req.url === "/api/v1/auth/user/create" ||
-			req.url === "/api/v1/health-check/get"
-		) {
-			return next();
-		}
 
 		// Check if the token is present in the request headers or query parameters or wherever it might be
 		const token = req.headers["authorization"];

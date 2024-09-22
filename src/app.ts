@@ -1,16 +1,15 @@
-import express, { Application } from "express";
-import compression from "compression";
 import cors from "cors";
+import path from "path";
+import db from "./database";
 import helmet from "helmet";
 import morgan from "morgan";
+import customEnv from "./lib/validateEnv";
+import compression from "compression";
+import express, { Application } from "express";
 import IController from "./lib/interfaces/controller.interface";
 import ErrorMiddleWare from "./middleware/error/error.middleware";
 import apiKeyMiddleware from "./middleware/auth/api.key.middleware";
-
 import { checkTokenAndDecode } from "./middleware/auth/protected.api.middleware";
-import path from "path";
-import mongoose from "mongoose";
-import customEnv from "./lib/validateEnv";
 
 class App {
 	public express: Application;
@@ -29,7 +28,6 @@ class App {
 		this.express.use(helmet());
 		this.express.use(morgan("combined"));
 		this.express.use(compression());
-		this.express.use(checkTokenAndDecode);
 		// Increase payload size limit
 		this.express.use(express.json({ limit: "50mb" }));
 		this.express.use(express.static(this.publicPath));
@@ -43,10 +41,14 @@ class App {
 	}
 
 	private initializeDatabase() {
-		mongoose
-			.connect(customEnv.DB_URL, { retryWrites: true })
-			.then((state) => console.log("Connected to db"))
-			.catch((err) => console.log("Error connecting to db: ", err));
+		// Test connection
+		db.raw("SELECT 1")
+			.then(() => {
+				console.log("PostgreSQL connection successful");
+			})
+			.catch((err) => {
+				console.error("PostgreSQL connection failed:", err);
+			});
 	}
 
 	private initializeErrorhandling(): void {

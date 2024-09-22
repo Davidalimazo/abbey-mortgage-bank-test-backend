@@ -1,43 +1,45 @@
-import { Document, ObjectId } from "mongoose";
+import { POST_ENUM } from "../../lib/enums/post.enum";
 import { IMediator } from "../../lib/interfaces";
-import { IUser } from "../users/interfaces";
 
-export interface IPost extends Document {
-	_id: string;
+export interface IPost {
+	id: number;
+	userId: string;
+	postId: string;
 	title: string;
 	description: string;
 	image_url: string;
-	createdAt: string;
-	updatedAt: string;
-	comments: Comments[]; // Array of comments
-	likes: number;
-	status: "In Progress" | "Completed" | "Overdue";
-	assigned_to: ObjectId;
-}
-
-export interface IPostResonse {
-	id?: string;
-	title: string;
-	description: string;
-	image_url: string;
-	createdAt: string;
-	updatedAt: string;
-	comments: Comments[]; // Array of comments
-	likes: number;
-	status: "In Progress" | "Completed" | "Overdue";
-	assigned_to: ObjectId;
-}
-
-export enum Status {
-	InProgress = "In Progress",
-	Completed = "Completed",
-	Overdue = "Overdue",
+	created_at: string;
+	updated_at: string;
+	status: POST_ENUM;
 }
 
 export interface Comments {
-	user: IUser;
+	userId: string;
+	postId: string;
+	commentId: string;
 	comment: string;
-	timestamp: string;
+	created_at: string;
+	updated_at: string;
+}
+
+export interface PostReactions {
+	userId: string;
+	postId: string;
+	postReactionId: string;
+	like: number;
+	dislike: number;
+	created_at: string;
+	updated_at: string;
+}
+export interface CommentReactions {
+	userId: string;
+	postId: string;
+	commentReactionId: string;
+	commentId: string;
+	like: number;
+	dislike: number;
+	created_at: string;
+	updated_at: string;
 }
 
 export interface CreatePostDto {
@@ -48,8 +50,7 @@ export interface CreatePostDto {
 	updatedAt: string;
 	comments: Comments[]; // Array of comments
 	likes: number;
-	status: "In Progress" | "Completed" | "Overdue";
-	assigned_to: ObjectId;
+	status: POST_ENUM;
 }
 
 export type IUpdatePostModel = Partial<IPost>;
@@ -57,20 +58,18 @@ export type IUpdatePostModel = Partial<IPost>;
 export abstract class IPostRepository {
 	abstract createPost(
 		createPostDto: CreatePostDto,
-	): Promise<IMediator<IPostResonse> | null>;
-	abstract getAllPost(): Promise<IMediator<IPostResonse[]> | null>;
+	): Promise<IMediator<IPost> | null>;
+	abstract getAllPost(): Promise<IMediator<IPost[]> | null>;
 	abstract editPost(
 		userId: string,
 		editPostDto: IUpdatePostModel,
-	): Promise<IMediator<IPostResonse | null>>;
-	abstract deletePost(
-		postId: string,
-	): Promise<IMediator<IPostResonse | null>>;
+	): Promise<IMediator<IPost | null>>;
+	abstract deletePost(postId: string): Promise<IMediator<IPost | null>>;
 	abstract getAllUserPosts(
 		userId: string,
 		limit: number,
-	): Promise<IMediator<IPostResonse[] | null>>;
-	abstract getAPost(postId: string): Promise<IMediator<IPostResonse | null>>;
+	): Promise<IMediator<IPost[] | null>>;
+	abstract getAPost(postId: string): Promise<IMediator<IPost | null>>;
 	abstract commentOnAPost(
 		postId: string,
 		userId: string,
@@ -79,5 +78,5 @@ export abstract class IPostRepository {
 		userId: string,
 		postId: string,
 		action: boolean,
-	): Promise<IMediator<IPostResonse | null>>;
+	): Promise<IMediator<IPost | null>>;
 }

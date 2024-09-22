@@ -25,7 +25,7 @@ class PostService {
 				comments,
 				likes,
 				status,
-				assigned_to,
+			
 			});
 
 			if (data.status === HttpStatus.OK) {

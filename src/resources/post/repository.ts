@@ -7,15 +7,11 @@ import {
 	IPostResonse,
 	IUpdatePostModel,
 } from "./interfaces";
-import Post from "./model";
-import { Types } from "mongoose";
 
 class PostRepository extends IPostRepository {
 	async getAllPost(): Promise<IMediator<IPostResonse[]>> {
-		const allPost = await Post.find({});
-
 		return {
-			data: allPost || null,
+			data: [] || null,
 			message: `Post record updated successfully`,
 			status: HttpStatus.OK,
 		};
@@ -24,23 +20,18 @@ class PostRepository extends IPostRepository {
 		userId: string,
 		editPostDto: IUpdatePostModel,
 	): Promise<IMediator<IPostResonse | null>> {
-		const oid = new Types.ObjectId(userId);
-		const userPost = await Post.findOne({ assigned_to: oid });
-		if (!userPost?.toObject({ flattenObjectIds: true }).assigned_to) {
+		const userPost = null;
+		if (!userPost) {
 			return {
 				data: null,
 				message: `Post record not found for this id: ${userId}`,
 				status: HttpStatus.NOT_ACCEPTABLE,
 			};
 		}
-		let updatedPost = await Post.findOneAndUpdate(
-			{ assigned_to: oid }, // Criteria to find the post
-			editPostDto, // Fields to update
-			{ new: true, runValidators: true },
-		).exec();
+		let updatedPost = null;
 
 		return {
-			data: updatedPost?.toObject({ flattenObjectIds: true }) || null,
+			data: null,
 			message: `Post record updated successfully`,
 			status: HttpStatus.OK,
 		};
@@ -80,29 +71,28 @@ class PostRepository extends IPostRepository {
 		comments,
 		likes,
 		status,
-		assigned_to,
 	}: CreatePostDto): Promise<IMediator<IPostResonse>> {
 		try {
 			// Create a new Post
-			const newPost = new Post({
-				title,
-				description,
-				image_url,
-				createdAt,
-				updatedAt,
-				comments,
-				likes,
-				status,
-				assigned_to,
-			});
+			const newPost = null;
 
 			// Save the new Post to the database
-			const savedPost = await newPost.save();
+			const savedPost = null;
 
-			const post = savedPost.toObject();
+			const post = null;
 
 			return {
-				data: { id: post._id, ...post },
+				data: {
+					id: "",
+					comments: [],
+					createdAt,
+					description: "",
+					image_url: "",
+					likes: 0,
+					status: "In Progress",
+					title: "",
+					updatedAt: "",
+				},
 				message: "Success",
 				status: HttpStatus.OK,
 			};
