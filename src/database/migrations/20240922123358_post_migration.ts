@@ -8,9 +8,8 @@ exports.up = async function up(knex) {
 		"posts",
 		//@ts-ignore
 		(table) => {
-			table.increments();
-			table.uuid("idUser");
-			table.uuid("postId").unique();
+			table.uuid("postId").primary(); // Auto-increment primary key for posts
+			table.uuid("userId"); // Foreign key column
 			table.string("title");
 			table.string("description");
 			table.string("image_url");
@@ -18,11 +17,11 @@ exports.up = async function up(knex) {
 				.enum("status", ["In Progress", "Completed", "Overdue"])
 				.notNullable();
 			table
-				.foreign("idUser", "user_id_f_key")
-				.references("userId")
+				.foreign("providerId", "user_post_id_f_key")
+				.references("userId") // References the userId in the users table
 				.inTable("users")
-				.onUpdate("CASCADE")
-				.onDelete("CASCADE");
+				.onUpdate("CASCADE") // If userId is updated, update posts as well
+				.onDelete("CASCADE"); // If user is deleted, delete related posts
 
 			table.timestamps(false, true);
 		},

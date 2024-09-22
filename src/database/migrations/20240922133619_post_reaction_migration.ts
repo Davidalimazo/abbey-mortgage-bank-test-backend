@@ -8,10 +8,9 @@ exports.up = async function up(knex) {
 		"post_reactions",
 //@ts-ignore
 		(table) => {
-			table.increments();
+			table.uuid("postReactionId").primary();
 			table.uuid("userId");
 			table.uuid("postId");
-			table.uuid("postReactionId");
 			table.integer("like");
 			table.integer("dislike");
             table

@@ -21,8 +21,7 @@ exports.up = async function up(knex) {
 		"users",
 		//@ts-ignore
 		(table) => {
-			table.increments();
-			table.uuid("userId").unique();
+			table.uuid("userId").primary(); // UUID primary key
 			table.string("firstName");
 			table.string("middleName");
 			table.string("lastName");
