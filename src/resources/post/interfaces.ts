@@ -1,8 +1,7 @@
-import { POST_ENUM } from "../../lib/enums/post.enum";
+import { POST_STATUS } from "../../lib/enums/post.enum";
 import { IMediator } from "../../lib/interfaces";
 
 export interface IPost {
-	id: number;
 	userId: string;
 	postId: string;
 	title: string;
@@ -10,7 +9,7 @@ export interface IPost {
 	image_url: string;
 	created_at: string;
 	updated_at: string;
-	status: POST_ENUM;
+	status: POST_STATUS;
 }
 
 export interface Comments {
@@ -46,11 +45,9 @@ export interface CreatePostDto {
 	title: string;
 	description: string;
 	image_url: string;
-	createdAt: string;
-	updatedAt: string;
-	comments: Comments[]; // Array of comments
-	likes: number;
-	status: POST_ENUM;
+	status: POST_STATUS;
+	userId: string; // Matches userId from users table
+	postId?: string;
 }
 
 export type IUpdatePostModel = Partial<IPost>;
@@ -62,9 +59,13 @@ export abstract class IPostRepository {
 	abstract getAllPost(): Promise<IMediator<IPost[]> | null>;
 	abstract editPost(
 		userId: string,
+		postId: string,
 		editPostDto: IUpdatePostModel,
 	): Promise<IMediator<IPost | null>>;
-	abstract deletePost(postId: string): Promise<IMediator<IPost | null>>;
+	abstract deletePost(
+		userId: string,
+		postId: string
+	): Promise<IMediator<string | null>>;
 	abstract getAllUserPosts(
 		userId: string,
 		limit: number,

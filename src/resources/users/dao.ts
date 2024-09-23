@@ -24,10 +24,23 @@ class UserDAO {
 		return user[0];
 	}
 
-    async updateUser({ user, userId }: { user: Partial<IUser>; userId: string }) {
-        const updatedUser = await db<IUser>('users').where({ userId }).update(user).returning('*');
-        return updatedUser[0];
-    };
+	async updateUser({
+		user,
+		userId,
+	}: {
+		user: Partial<IUser>;
+		userId: string;
+	}) {
+		const updatedUser = await db<IUser>("users")
+			.where({ userId })
+			.update(user)
+			.returning("*");
+		return updatedUser[0];
+	}
+
+	async deletePost({ userId }: { userId: string }) {
+		return db<IUser>("users").del().where("userId", userId);
+	}
 }
 
 export default new UserDAO();

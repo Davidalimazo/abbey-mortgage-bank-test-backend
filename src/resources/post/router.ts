@@ -20,11 +20,25 @@ class PostRouter extends IRouter {
 			checkTokenAndDecode,
 			this.controller.createpost,
 		);
-		this.router.put("/edit", checkTokenAndDecode, this.controller.editPost);
+		this.router.put(
+			"/edit/:postId",
+			checkTokenAndDecode,
+			this.controller.editPost,
+		);
 		this.router.get(
 			"/all",
 			checkTokenAndDecode,
 			this.controller.getAllPost,
+		);
+		this.router.get(
+			"/user-post/:userId",
+			checkTokenAndDecode,
+			this.controller.getUserPost,
+		);
+		this.router.delete(
+			"/delete-post/:postId",
+			checkTokenAndDecode,
+			this.controller.deletePost,
 		);
 	}
 }

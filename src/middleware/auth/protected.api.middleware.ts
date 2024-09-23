@@ -2,16 +2,13 @@ import { Request, Response, NextFunction } from "express";
 import jwt, { JwtPayload, VerifyErrors } from "jsonwebtoken";
 import customEnv from "../../lib/validateEnv";
 
-
 // Middleware function
 export const checkTokenAndDecode: (
 	req: Request,
 	res: Response,
 	next: NextFunction,
 ) => void = async (req, res, next) => {
-
 	try {
-
 		// Check if the token is present in the request headers or query parameters or wherever it might be
 		const token = req.headers["authorization"];
 
@@ -39,9 +36,7 @@ export const checkTokenAndDecode: (
 					});
 				}
 
-				// Add the decoded 'USER_ID' to req.locals for use in subsequent middleware/routes
-				//@ts-ignore
-				req.locals = { ...decoded };
+				res.locals.user = { ...decoded };
 
 				next();
 			},
